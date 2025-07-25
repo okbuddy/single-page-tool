@@ -1,0 +1,134 @@
+<html>
+<meta charset="UTF-8">
+<title>微信长图打印</title>
+<head>
+<script>
+  window.onload = function() {  
+    // 在这里执行你的代码  
+   
+};
+var fileName;
+// 上传长图并获取图片的宽度和高度
+function uploadImage() {
+  var input = document.getElementById("fileInput");
+  fileName = input.files[0].name; 
+  var image = document.getElementById("image");
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    image.src = e.target.result;
+    image.onload = function() {
+      var width = image.width;
+      var height = image.height;
+      document.getElementById("width").value = width;
+      document.getElementById("height").value = height;
+         calculateLength(); 
+    };
+  };
+  reader.readAsDataURL(input.files[0]);
+
+}
+
+// 根据输入的倍数x，计算每个短图片的长度
+function calculateLength() {
+  var x = +document.getElementById("x").value;
+  var width = +document.getElementById("width").value;
+  var length = x * width;
+  document.getElementById("length").value = length;
+}
+
+// 将长图分割成多个短图片，并保存在一个数组中
+function splitImage() {
+  var image =  document.getElementById("image");
+  var width = +document.getElementById("width").value;
+  var height =+document.getElementById("height").value;
+  var length =+document.getElementById("length").value;
+  var canvas = document.createElement("canvas");
+  var context = canvas.getContext("2d");
+  canvas.width = width;
+  canvas.height = length;
+  var images = [];
+  var y = 0;
+  while (y < height) {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, -y);
+    var dataURL = canvas.toDataURL();
+    images.push(dataURL);
+    y += length;
+    // 打印出进度
+    console.log("已截取" + images.length + "张短图片");
+  }
+  return images;
+}
+
+// 生成一个新的图片画廊html页面，并按A4纸的比例分割成不同的页面
+function generateGallery() {
+  calculateLength();
+  var images = splitImage();
+  var pageCount = document.getElementById("pageCount").value;
+  var html = "<html><head><style>";
+  
+  html += "body { margin: 0 }";
+  html += "/* Define the size and margins of the page box */ @page {  size: A4;  margin: 10mm;}";
+  html += "img { width: 100%; height: 100%; object-fit: contain; }";
+ // html += "div.div1 { padding: 0 0px calc(297 / 210 * 100%) 0px; width: 100%;  height: 0; position: relative; display: flex; justify-content: space-between; }"; 
+  html += "div.div1 { width: 190mm;  height: 277mm;  /* Force a page break after each div */  page-break-after: always; position: relative; display: flex; justify-content: space-between; }"; 
+  html += "div.div2 { box-sizing: border-box; padding: 0 0px 0 0px; width: 50%; height: 100%; }"; // Adjusted width to ensure div2 elements fit in a row
+  html += "span { position: absolute; bottom: -8mm; right: -8mm; font-size: 6mm; }";
+  html += "</style></head><body>";
+  var totalPageCount= Math.ceil(images.length / 2);
+  for (var i = 0; i < images.length; i += 2) {
+    html += "<div class='div1'>";
+    // html += "<span>第" + pageCount +"/"+totalPageCount+ "页</span>";
+    
+    for (var j = 0; j < 2; j++) {
+      html += "<div class='div2'>";
+      var index = i + j;
+      if (index < images.length) {
+        html += "<img src='" + images[index] + "' alt='短图片" + (index + 1) + "'>";
+      }
+      html += "</div>";
+    }
+    
+    html += "</div>";
+    pageCount++;
+  }
+  html += "</body></html>";
+  var newWindow = window.open();
+  newWindow.document.write(html);
+  // 打印出进度
+  console.log("已生成图片画廊");
+}
+
+
+</script>
+</head>
+<body>
+  <h1>微信长图分割打印工具</h1>
+<div style="display: flex; flex-direction: row;">
+
+<div style="width: 50%;">
+
+<p>请上传您的微信长图：</p>
+<input type="file" id="fileInput" onchange="uploadImage()">
+<img id="image" style="display: none;">
+<p>请输入一个长度与宽度的倍数x：</p>
+<input type="number" id="x" value="3" onchange="calculateLength()">
+<p>您的长图的宽度为：</p>
+<input type="number" id="width" readonly>
+</div>
+
+<div style="width: 50%;">
+<p>您的长图的高度为：</p>
+<input type="number" id="height" readonly>
+<p>您的短图片的长度为：</p>
+<input type="number" id="length" readonly>
+
+<p>请输入您想要的初始页码：</p>
+<input type="number" id="pageCount" value="1">
+ <p/>
+<button onclick="generateGallery()">生成图片画廊</button>
+</div>
+</div>
+</body>
+
+</html>

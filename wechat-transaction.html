@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>微信转账电子凭证分析</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+</head>
+<body>
+  <h2>上传微信电子凭证 PDF</h2>
+  <input type="file" id="upload" accept="application/pdf" />
+  <button onclick="exportExcel()">生成 Excel</button>
+
+  <script>
+    let allRecords = [];
+
+    document.getElementById('upload').addEventListener('change', async function () {
+      const file = this.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async function () {
+        const typedarray = new Uint8Array(reader.result);
+
+        const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          fullText += textContent.items.map(item => item.str).join('\n');
+        }
+
+        parseRecords(fullText);
+        alert("数据已解析，可点击生成 Excel");
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    function parseRecords(text) {
+      allRecords = [];
+
+      const regex = /(\d{16})\s+转账\s+(支出|收入|其他)\s+([^\s]+)\s+([\d.]+)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})[\s\S]*?微信转账\s+([^\n]+)/g;
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        allRecords.push({
+          '交易单号': match[1],
+          '收/支': match[2],
+          '方式': match[3],
+          '金额': parseFloat(match[4]),
+          '日期': match[5],
+          '时间': match[6],
+          '状态': match[7]
+        });
+      }
+    }
+
+    function exportExcel() {
+      if (allRecords.length === 0) {
+        alert("请先上传并解析 PDF 文件！");
+        return;
+      }
+
+      const wsAll = XLSX.utils.json_to_sheet(allRecords);
+      const wsExpend1000 = XLSX.utils.json_to_sheet(allRecords.filter(r => r['收/支'] === '支出' && r['金额'] > 1000));
+      const wsIncome1000 = XLSX.utils.json_to_sheet(allRecords.filter(r => r['收/支'] === '收入' && r['金额'] > 1000));
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, wsAll, "全部记录");
+      XLSX.utils.book_append_sheet(wb, wsExpend1000, "支出>1000");
+      XLSX.utils.book_append_sheet(wb, wsIncome1000, "收入>1000");
+
+      XLSX.writeFile(wb, "微信转账记录分析.xlsx");
+    }
+  </script>
+</body>
+</html>

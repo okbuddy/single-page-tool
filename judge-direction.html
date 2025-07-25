@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 页面阅读方向和旋转方向</title>
+</head>
+<body>
+    <input type="file" id="pdfFile" accept=".pdf">
+    <div id="output"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.16.0/pdf-lib.js"></script>
+    <script>
+        document.getElementById('pdfFile').addEventListener('change', handleFileSelect);
+
+        async function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function(event) {
+        const arrayBuffer = event.target.result;
+        const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+        const viewerPrefs = pdfDoc.catalog.getOrCreateViewerPreferences();
+
+        console.log('ReadingDirection:', viewerPrefs.getReadingDirection());
+
+        const pageCount = pdfDoc.getPageCount();
+        console.log('Rotation angles for each page:');
+        for (let i = 0; i < pageCount; i++) {
+            const page = pdfDoc.getPage(i);
+            const { width, height } = page.getSize();
+            const rotation = page.getRotation().angle;
+            console.log(`Page ${i + 1}: Rotation Angle - ${rotation} degrees width-height (${width}-${ height})`);
+        }
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+    </script>
+</body>
+</html>
